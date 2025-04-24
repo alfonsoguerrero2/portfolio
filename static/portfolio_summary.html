@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>Portfolio Summary (15/02/2022 to 16/02/2023)</h1>
+
+<form id="date-form">
+    <label for="start">Start Date:</label>
+    <input type="date" id="start" name="start"
+           min="2022-02-15" max="2023-02-16" required>
+
+    <label for="end">End Date:</label>
+    <input type="date" id="end" name="end"
+           min="2022-02-15" max="2023-02-16" required>
+
+    <button type="submit">Get Summary</button>
+</form>
+
+<canvas id="valueChart"></canvas>
+<canvas id="weightsChartP1"></canvas>
+<canvas id="weightsChartP2"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const form = document.getElementById('date-form');
+    const valueChartCtx = document.getElementById('valueChart').getContext('2d');
+    const weightsChartP1Ctx = document.getElementById('weightsChartP1').getContext('2d');
+    const weightsChartP2Ctx = document.getElementById('weightsChartP2').getContext('2d');
+    let valueChart, weightsChartP1, weightsChartP2;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const start = document.getElementById('start').value;
+        const end = document.getElementById('end').value;
+
+        const response = await fetch(`/api/portfolio-summary/?initial_date=${start}&end_date=${end}`);
+        const data = await response.json();
+        console.log(data);
+        const labels = data.map(d => d.date);
+        const p1Values = data.map(d => d.portfolio_1.total_value);
+        const p2Values = data.map(d => d.portfolio_2.total_value);
+
+        // Total value chart
+        if (valueChart) valueChart.destroy();
+        valueChart = new Chart(valueChartCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Portfolio 1 Total Value',
+                        data: p1Values,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Portfolio 2 Total Value',
+                        data: p2Values,
+                        borderWidth: 2
+                    }
+                ]
+            }
+        });
+
+
+        
+        // Weights chart
+        const p1WeightsRaw = data.map(d => d.portfolio_1.weights);
+        const p2WeightsRaw = data.map(d => d.portfolio_2.weights);
+
+        const p1Assets = Object.keys(p1WeightsRaw[0]);
+        const p2Assets = Object.keys(p2WeightsRaw[0]);
+
+        const generateColors = (count) => {
+            const colors = [
+            '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+            '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe',
+            '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000',
+            '#aaffc3', '#808000'
+        ];
+        return colors.slice(0, count); // Limit to count
+       };
+
+        const buildDataset = (assetList, rawData) => {
+        const colors = generateColors(assetList.length);
+        return assetList.map((asset, index) => ({
+            label: asset,
+            data: rawData.map(w => w[asset]),
+            fill: true,
+            borderColor: colors[index],
+            backgroundColor: colors[index] + '88', // Add transparency for filled area
+            tension: 0.4
+        }));
+        };
+
+        // Destroy previous charts
+        if (weightsChartP1) weightsChartP1.destroy();
+        if (weightsChartP2) weightsChartP2.destroy();
+
+        // Portfolio 1 weights chart
+        weightsChartP1 = new Chart(weightsChartP1Ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: buildDataset(p1Assets, p1WeightsRaw)
+            },
+            options: {
+                plugins: { title: { display: true, text: 'Portfolio 1 Asset Weights' }},
+                scales: {
+                    y: { stacked: true, beginAtZero: true, max: 1 }
+                }
+            }
+        });
+
+        // Portfolio 2 weights chart
+        weightsChartP2 = new Chart(weightsChartP2Ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: buildDataset(p2Assets, p2WeightsRaw)
+            },
+            options: {
+                plugins: { title: { display: true, text: 'Portfolio 2 Asset Weights' }},
+                scales: {
+                    y: { stacked: true, beginAtZero: true, max: 1 }
+                }
+            }
+        });
+
+
+    });
+</script>
+{% endblock %}

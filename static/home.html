@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1>Portfolios Overview</h1>
+    {% for portfolio in portfolios %}
+        <h2>{{ portfolio.name }}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Amount</th>
+                    <th>Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holding in portfolio.holdings.all %}
+                <tr>
+                    <td>{{ holding.asset.name }}</td>
+                    <td>{{ holding.amount }}</td>
+                    <td>{{ holding.weight }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+{% endblock %}
